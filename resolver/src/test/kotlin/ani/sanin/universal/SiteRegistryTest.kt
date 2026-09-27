@@ -52,6 +52,8 @@ class SiteRegistryTest {
         assertTrue(ChallengeDetector.isChallenge(403, "<title>Attention Required! | Cloudflare</title>", "cloudflare"))
         assertTrue(ChallengeDetector.isChallenge(503, "<h1>Just a moment...</h1>", "cloudflare"))
         assertTrue(ChallengeDetector.isChallenge(403, "checking your browser before accessing", null))
+        // Some WAFs serve the interstitial with a 200 and no Server header.
+        assertTrue(ChallengeDetector.isChallenge(200, "<h1>Just a moment...</h1>", null))
         assertEquals("cloudflare", ChallengeDetector.kind("cloudflare"))
         // An ordinary 404 or a real page must not be mistaken for a challenge.
         assertFalse(ChallengeDetector.isChallenge(404, "<h1>Not found</h1>", "nginx"))

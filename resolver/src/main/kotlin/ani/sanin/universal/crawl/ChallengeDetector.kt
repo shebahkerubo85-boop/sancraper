@@ -26,11 +26,13 @@ object ChallengeDetector {
     )
 
     fun isChallenge(status: Int, body: String?, server: String? = null): Boolean {
-        val serverHeader = server?.lowercase() ?: return false
+        // The Server header is a hint, not a requirement: plenty of WAFs omit it, and some serve the
+        // interstitial with a 200.
+        val serverHeader = server?.lowercase() ?: ""
         val cloudflareish = serverHeader.contains("cloudflare") || serverHeader.contains("ddos-guard")
         val text = body?.take(4000)?.lowercase() ?: ""
         val marked = MARKERS.any { text.contains(it) }
-        if (marked && (status == 403 || status == 503 || status == 429 || cloudflareish)) return true
+        if (marked && (status == 403 || status == 503 || status == 429 || status == 200 || cloudflareish)) return true
         return cloudflareish && (status == 403 || status == 503)
     }
 
