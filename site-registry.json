@@ -1,0 +1,11 @@
+{
+  "version": 3,
+  "sites": [
+    {"id":"mkissa","domains":["mkissa.to"],"searchUrl":"https://mkissa.to/search/anime?query={query}"},
+    {"id":"kurono","domains":["kurono.nl"]},
+    {"id":"anikura","domains":["anikura.club"]},
+    {"id":"senshi","domains":["senshi.to"]},
+    {"id":"anikoto","domains":["anikoto.cz"]},
+    {"id":"hianime","domains":["hianime.at"]}
+  ]
+}
