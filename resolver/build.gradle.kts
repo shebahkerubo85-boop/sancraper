@@ -1,4 +1,4 @@
-plugins { kotlin("jvm"); application }
+plugins { kotlin("jvm"); kotlin("plugin.serialization"); application }
 kotlin { jvmToolchain(17) }
 dependencies {
  implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
