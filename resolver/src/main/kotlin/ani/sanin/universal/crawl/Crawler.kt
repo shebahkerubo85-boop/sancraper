@@ -15,7 +15,8 @@ data class CrawledPage(
     val html: String,
     val depth: Int,
     val status: Int = 200,
-    val contentType: String? = null
+    val contentType: String? = null,
+    val server: String? = null
 ) {
     val isJson: Boolean get() = contentType?.contains("json", ignoreCase = true) == true
 }
@@ -60,7 +61,7 @@ class SiteCrawler(
                 val u = batch[index]
                 val body = result?.body
                 if (result == null || body == null) continue
-                out += CrawledPage(u, body, depth, result.status, result.contentType)
+                out += CrawledPage(u, body, depth, result.status, result.contentType, result.server)
                 if (depth >= maxDepth) continue
                 collectLinks(u, body, domain)?.forEach { link ->
                     val k = key(link)

@@ -1,5 +1,7 @@
 package ani.sanin.universal.adapter
 
+import ani.sanin.universal.crawl.ChallengeDetector
+import ani.sanin.universal.crawl.SiteChallengeException
 import ani.sanin.universal.crawl.SiteCrawler
 import ani.sanin.universal.discovery.AnimeDiscovery
 import ani.sanin.universal.discovery.EpisodeDiscovery
@@ -9,12 +11,7 @@ import ani.sanin.universal.model.AnimeCandidate
 import ani.sanin.universal.model.EpisodeCandidate
 import ani.sanin.universal.model.ResolvedVideo
 import ani.sanin.universal.network.HttpFetcher
-import ani.sanin.universal.util.EpisodeParser
 import ani.sanin.universal.util.UrlUtil
-import ani.sanin.universal.validation.MediaValidator
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
@@ -42,14 +39,22 @@ class SiteAdapterRegistry(private val adapters: List<SiteAdapter> = emptyList())
 class GenericSiteAdapter(
     private val depth: Int = 2,
     private val pages: Int = 36,
-    private val deadlineMillis: Long = 20_000,
-    private val probeLimit: Int = 5
+    private val deadlineMillis: Long = 20_000
 ) : SiteAdapter {
 
     override fun canHandle(u: HttpUrl) = true
 
-    override suspend fun searchAnime(c: OkHttpClient, s: HttpUrl, t: String): List<AnimeCandidate> =
-        AnimeDiscovery.find(SiteCrawler(HttpFetcher(c), depth, pages, deadlineMillis = deadlineMillis).crawl(s), t)
+    override suspend fun searchAnime(c: OkHttpClient, s: HttpUrl, t: String): List<AnimeCandidate> {
+        val crawled = SiteCrawler(HttpFetcher(c), depth, pages, deadlineMillis = deadlineMillis).crawl(s)
+        // A crawl that only ever saw challenge pages means the site is refusing the request, not
+        // that the anime is missing. That distinction decides whether escalation is worthwhile.
+        val readable = crawled.filter { it.status == 200 && it.body.isNotBlank() }
+        if (readable.isEmpty() && crawled.any { it.status == 403 || it.status == 503 }) {
+            val challenged = crawled.first { it.status == 403 || it.status == 503 }
+            throw SiteChallengeException(s.toString(), ChallengeDetector.kind(challenged.server))
+        }
+        return AnimeDiscovery.find(crawled, t)
+    }
 
     override suspend fun findEpisodes(c: OkHttpClient, a: AnimeCandidate): List<EpisodeCandidate> {
         val u = a.url.toHttpUrlOrNull() ?: return emptyList()
@@ -66,35 +71,9 @@ class GenericSiteAdapter(
     }
 
     override suspend fun extractEpisode(c: OkHttpClient, e: EpisodeCandidate): List<ResolvedVideo> {
-        val fetcher = HttpFetcher(c)
         val raw = MediaExtractorRegistry.default().extract(c, e.url, e.number)
         if (raw.isEmpty()) return emptyList()
-        val expanded = HlsResolver.expand(c, raw, referer = e.url)
-        return validate(fetcher, expanded, e.url)
-    }
-
-    /**
-     * Confirms the best candidates really serve media and drops the rest. A URL that looked like
-     * media but returns a player page, an advert or a few hundred bytes is not playable.
-     */
-    private suspend fun validate(fetcher: HttpFetcher, videos: List<ResolvedVideo>, referer: String): List<ResolvedVideo> {
-        val ordered = videos.distinctBy { UrlUtil.resourceKey(it.url) }
-            .sortedWith(compareByDescending<ResolvedVideo> { it.score }.thenByDescending { it.quality ?: 0 })
-        if (ordered.isEmpty()) return emptyList()
-
-        val toProbe = ordered.take(probeLimit)
-        val verdicts = coroutineScope {
-            toProbe.map { v -> async { runCatching { fetcher.probe(v.url, referer) }.getOrNull() } }.awaitAll()
-        }
-
-        val accepted = mutableListOf<ResolvedVideo>()
-        toProbe.forEachIndexed { index, v ->
-            val probe = verdicts[index] ?: return@forEachIndexed
-            if (MediaValidator.accept(probe, v.type)) accepted += v
-        }
-        // If verification was inconclusive (probes failed outright) fall back to the ranked list
-        // rather than reporting nothing at all.
-        return if (accepted.isEmpty()) ordered.take(2) else accepted
+        return HlsResolver.expand(c, raw, referer = e.url)
     }
 
     private fun findEpisodePageLink(html: String, base: String): String? {

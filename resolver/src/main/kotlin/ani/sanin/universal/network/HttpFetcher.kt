@@ -15,7 +15,8 @@ data class FetchResult(
     val contentType: String? = null,
     val contentLength: Long? = null,
     val finalUrl: String? = null,
-    val retryAfterSeconds: Long? = null
+    val retryAfterSeconds: Long? = null,
+    val server: String? = null
 ) {
     val ok: Boolean get() = status == 200 || status == 206
     val isJson: Boolean get() = contentType?.contains("json", ignoreCase = true) == true
@@ -59,7 +60,8 @@ class HttpFetcher(private val client: OkHttpClient) {
                             contentType = r.header("Content-Type"),
                             contentLength = r.header("Content-Length")?.toLongOrNull(),
                             finalUrl = r.request.url.toString(),
-                            retryAfterSeconds = parseRetryAfter(r.header("Retry-After"))
+                            retryAfterSeconds = parseRetryAfter(r.header("Retry-After")),
+                            server = r.header("Server")
                         )
                     }
                 }.getOrNull()

@@ -1,7 +1,13 @@
 package ani.sanin.universal
 
+import ani.sanin.universal.adapter.CandidateValidator
 import ani.sanin.universal.adapter.GenericSiteAdapter
 import ani.sanin.universal.adapter.SiteAdapterRegistry
+import ani.sanin.universal.adapter.SiteApiAdapter
+import ani.sanin.universal.crawl.SiteChallengeException
+import ani.sanin.universal.registry.SiteDefinition
+import ani.sanin.universal.registry.RemoteRegistry
+import ani.sanin.universal.registry.SiteRegistry
 import ani.sanin.universal.model.AnimeCandidate
 import ani.sanin.universal.model.ResolutionStage
 import ani.sanin.universal.model.ResolveDiagnostics
@@ -25,7 +31,7 @@ import java.util.concurrent.TimeUnit
  */
 class UniversalResolver(
     private val client: OkHttpClient = defaultClient(),
-    private val registry: SiteAdapterRegistry = SiteAdapterRegistry(),
+    private val registry: SiteAdapterRegistry = defaultRegistry(client),
     private val timeoutMillis: Long = 60_000
 ) {
     suspend fun resolve(startUrl: String, animeTitle: String, episodeNumber: Int? = null): ResolveResult {
@@ -86,7 +92,8 @@ class UniversalResolver(
                     for (ep in chosen.take(4)) {
                         lastPage = ep.url
                         attempts += "media-extraction:${ep.url}"
-                        val videos = adapter.extractEpisode(client, ep)
+                        val raw = adapter.extractEpisode(client, ep)
+                        val videos = if (raw.isEmpty()) emptyList() else CandidateValidator.validate(client, raw, ep.url)
                         if (videos.isNotEmpty()) {
                             val enriched = videos.map {
                                 it.copy(title = a.title, episodeNumber = episodeNumber)
@@ -122,6 +129,16 @@ class UniversalResolver(
                     nextActions = listOf("load-in-webview", "observe-media-requests", "post-browser-observation")
                 )
             )
+        } catch (e: SiteChallengeException) {
+            ResolveResult.BrowserRequired(
+                pageUrl = u.toString(),
+                reason = "The site answered with a ${e.challengeKind} challenge instead of content. A WebView solves this, so load the page there and post the observed media to /v1/browser-observation.",
+                diagnostics = ResolveDiagnostics(
+                    stage = ResolutionStage.BROWSER, site = site, attempts, warnings + "blocked by ${e.challengeKind}",
+                    requiresBrowser = true, escalateUrl = u.toString(),
+                    nextActions = listOf("load-in-webview", "solve-challenge", "observe-media-requests", "post-browser-observation")
+                )
+            )
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -133,6 +150,32 @@ class UniversalResolver(
     }
 
     companion object {
+        /**
+         * Builds adapters from the site registry. The registry document ships inside the jar and can
+         * be overridden at runtime, so supporting another API-driven site does not require a
+         * resolver release.
+         */
+        fun defaultRegistry(client: OkHttpClient): SiteAdapterRegistry {
+            val definitions = bundledRegistry() + remoteRegistry()
+            val adapters = definitions.filter { it.enabled && it.api != null }
+                .map { SiteApiAdapter(client, it, it.api!!) }
+            return SiteAdapterRegistry(adapters)
+        }
+
+        fun bundledRegistryJson(): String? =
+            SiteRegistry::class.java.getResourceAsStream("/site-registry.json")
+                ?.bufferedReader()?.use { it.readText() }
+
+        fun bundledRegistry(): List<SiteDefinition> {
+            val raw = bundledRegistryJson() ?: return emptyList()
+            return runCatching { SiteRegistry.fromJson(raw).all() }.getOrDefault(emptyList())
+        }
+
+        private fun remoteRegistry(): List<SiteDefinition> {
+            val url = System.getenv("SANIN_SITE_REGISTRY_URL") ?: return emptyList()
+            return runCatching { RemoteRegistry(defaultClient()).fetch(url).all() }.getOrDefault(emptyList())
+        }
+
         fun defaultClient() = OkHttpClient.Builder()
             .followRedirects(true)
             .followSslRedirects(true)
