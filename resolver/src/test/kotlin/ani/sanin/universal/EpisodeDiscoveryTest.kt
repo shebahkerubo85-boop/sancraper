@@ -1,7 +1,7 @@
 package ani.sanin.universal
 
 import ani.sanin.universal.discovery.EpisodeDiscovery
-import org.junit.jupiter.api.Test
+import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -19,7 +19,7 @@ import kotlin.test.assertTrue
 class EpisodeDiscoveryTest {
 
     private fun numbersFor(html: String, base: String) =
-        EpisodeDiscovery().find(html, base).map { it.number to it.url }.toSet()
+        EpisodeDiscovery.find(html, base).map { it.number to it.url }.toSet()
 
     @Test
     fun `series page link labelled Episode 1 is not an episode`() {
