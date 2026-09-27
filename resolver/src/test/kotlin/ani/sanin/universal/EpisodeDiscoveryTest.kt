@@ -84,6 +84,19 @@ class EpisodeDiscoveryTest {
     }
 
     @Test
+    fun `lookalike routes that are not episodes are rejected`() {
+        val html = """
+            <a href="/watchlist-3">Watchlist</a>
+            <a href="/video-game-review-7">Review</a>
+        """.trimIndent()
+        val found = numbersFor(html, "https://hianime.at/attack-on-titan-240")
+        assertTrue(
+            found.none { "watchlist" in it.second || "video-game" in it.second },
+            "prefix matches such as /watchlist must not qualify as episodes, got $found"
+        )
+    }
+
+    @Test
     fun `scoping fails open when the page slug has no usable tokens`() {
         // Numeric ids give no slug tokens to compare against; the full list must be kept
         // rather than silently dropping every episode.

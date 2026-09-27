@@ -114,7 +114,7 @@ object EpisodeParser {
      * episodes and send the client to the wrong URL.
      */
     private val EPISODE_ROUTE = Regex(
-        "(?i)/(?:episode|episodes|watch|play|stream|video|series/[^/]+/episode|ep)/|-/ep\\d|\\?ep=|\\?eps=|\\?episode=|\\?ep_number=|\\?epnum="
+        "(?i)(?:^|[/_-])(?:episode|episodes|ep|watch)(?=[-/_?#]|$)|\\?ep=|\\?eps=|\\?episode=|\\?ep_number=|\\?epnum="
     )
     private val EPISODE_TEXT = Regex("(?i)\\b(?:episode|episodes|eps|ep\\.?|part)\\s*#?\\d{1,4}\\b")
 
