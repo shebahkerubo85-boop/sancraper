@@ -4,6 +4,7 @@ import ani.sanin.universal.network.HttpFetcher
 import ani.sanin.universal.util.HostScope
 import ani.sanin.universal.util.UrlUtil
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull

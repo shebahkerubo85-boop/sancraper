@@ -13,6 +13,7 @@ import ani.sanin.universal.util.EpisodeParser
 import ani.sanin.universal.util.UrlUtil
 import ani.sanin.universal.validation.MediaValidator
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull

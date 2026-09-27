@@ -7,6 +7,7 @@ import ani.sanin.universal.util.EpisodeParser
 import ani.sanin.universal.util.QualityParser
 import ani.sanin.universal.util.UrlUtil
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
