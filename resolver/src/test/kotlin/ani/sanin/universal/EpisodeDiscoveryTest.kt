@@ -97,6 +97,23 @@ class EpisodeDiscoveryTest {
     }
 
     @Test
+    fun `off-site share links are not episodes`() {
+        // WordPress themes put Facebook/Twitter share widgets on every watch page; the shared URL
+        // contains the episode number, so a naive parse reported them as episodes.
+        val html = """
+            <a href="https://www.facebook.com/sharer.php?u=https://reanime.me/episode-1-en">Share</a>
+            <a href="https://twitter.com/share?url=https://reanime.me/episode-1-en">Tweet</a>
+            <a href="https://reanime.me/steel-ball-run-episode-2-en">Episode 2</a>
+        """.trimIndent()
+        val found = numbersFor(html, "https://reanime.me/steel-ball-run-episode-1-en")
+        assertTrue(
+            found.none { "facebook.com" in it.second || "twitter.com" in it.second },
+            "off-site share links must be rejected, got $found"
+        )
+        assertEquals(1, found.size, "only the same-site episode should remain, got $found")
+    }
+
+    @Test
     fun `scoping fails open when the page slug has no usable tokens`() {
         // Numeric ids give no slug tokens to compare against; the full list must be kept
         // rather than silently dropping every episode.

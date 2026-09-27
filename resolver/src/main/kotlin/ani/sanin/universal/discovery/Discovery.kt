@@ -4,6 +4,7 @@ import ani.sanin.universal.crawl.CrawledPage
 import ani.sanin.universal.model.AnimeCandidate
 import ani.sanin.universal.model.EpisodeCandidate
 import ani.sanin.universal.util.EpisodeParser
+import ani.sanin.universal.util.HostScope
 import ani.sanin.universal.util.UrlUtil
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -90,6 +91,7 @@ object EpisodeDiscovery {
                 val href = a.attr("href")
                 if (href.isBlank()) return@forEach
                 val absolute = UrlUtil.resolve(base, href) ?: return@forEach
+                if (!HostScope.sameSite(absolute, base)) return@forEach
                 val text = a.text().trim()
                 val hint = episodeHint(absolute, text) ?: return@forEach
                 found += EpisodeCandidate(hint.number, text.ifBlank { null }, absolute, score(text, absolute, hint))
@@ -100,6 +102,7 @@ object EpisodeDiscovery {
                 if (value.isBlank()) return@forEach
                 val absolute = UrlUtil.resolve(base, value) ?: return@forEach
                 if (!absolute.startsWith("http", true)) return@forEach
+                if (!HostScope.sameSite(absolute, base)) return@forEach
                 val text = o.text().trim()
                 val hint = episodeHint(absolute, text) ?: return@forEach
                 found += EpisodeCandidate(hint.number, text.ifBlank { null }, absolute, score(text, absolute, hint))
@@ -112,6 +115,7 @@ object EpisodeDiscovery {
                 val target = e.attr("data-href").ifBlank { e.attr("href") }
                 if (target.isBlank()) return@forEach
                 val absolute = UrlUtil.resolve(base, target) ?: return@forEach
+                if (!HostScope.sameSite(absolute, base)) return@forEach
                 val text = e.text().trim()
                 found += EpisodeCandidate(number, text.ifBlank { null }, absolute, score(text, absolute, EpisodeParser.EpisodeHint(number, "attr")))
             }
