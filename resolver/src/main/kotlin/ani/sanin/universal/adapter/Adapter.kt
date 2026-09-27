@@ -48,7 +48,7 @@ class GenericSiteAdapter(
         val crawled = SiteCrawler(HttpFetcher(c), depth, pages, deadlineMillis = deadlineMillis).crawl(s)
         // A crawl that only ever saw challenge pages means the site is refusing the request, not
         // that the anime is missing. That distinction decides whether escalation is worthwhile.
-        val readable = crawled.filter { it.status == 200 && it.body.isNotBlank() }
+        val readable = crawled.filter { it.status == 200 && it.html.isNotBlank() }
         if (readable.isEmpty() && crawled.any { it.status == 403 || it.status == 503 }) {
             val challenged = crawled.first { it.status == 403 || it.status == 503 }
             throw SiteChallengeException(s.toString(), ChallengeDetector.kind(challenged.server))
