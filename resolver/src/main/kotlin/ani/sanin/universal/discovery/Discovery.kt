@@ -91,7 +91,7 @@ object EpisodeDiscovery {
                 val href = a.attr("href")
                 if (href.isBlank()) return@forEach
                 val absolute = UrlUtil.resolve(base, href) ?: return@forEach
-                if (!HostScope.sameSite(absolute, base)) return@forEach
+                if (!sameSite(absolute, base)) return@forEach
                 val text = a.text().trim()
                 val hint = episodeHint(absolute, text) ?: return@forEach
                 found += EpisodeCandidate(hint.number, text.ifBlank { null }, absolute, score(text, absolute, hint))
@@ -102,7 +102,7 @@ object EpisodeDiscovery {
                 if (value.isBlank()) return@forEach
                 val absolute = UrlUtil.resolve(base, value) ?: return@forEach
                 if (!absolute.startsWith("http", true)) return@forEach
-                if (!HostScope.sameSite(absolute, base)) return@forEach
+                if (!sameSite(absolute, base)) return@forEach
                 val text = o.text().trim()
                 val hint = episodeHint(absolute, text) ?: return@forEach
                 found += EpisodeCandidate(hint.number, text.ifBlank { null }, absolute, score(text, absolute, hint))
@@ -115,7 +115,7 @@ object EpisodeDiscovery {
                 val target = e.attr("data-href").ifBlank { e.attr("href") }
                 if (target.isBlank()) return@forEach
                 val absolute = UrlUtil.resolve(base, target) ?: return@forEach
-                if (!HostScope.sameSite(absolute, base)) return@forEach
+                if (!sameSite(absolute, base)) return@forEach
                 val text = e.text().trim()
                 found += EpisodeCandidate(number, text.ifBlank { null }, absolute, score(text, absolute, EpisodeParser.EpisodeHint(number, "attr")))
             }
@@ -128,6 +128,19 @@ object EpisodeDiscovery {
         "anime", "watch", "episode", "episodes", "tv", "the", "and", "for", "with",
         "season", "part", "dub", "sub", "movie", "ova", "ona", "special", "free", "streaming"
     )
+
+    /**
+     * Episode links must stay on the site that published the page.
+     *
+     * `HostScope.sameSite` compares hostnames, not full URLs, so the host is extracted first.
+     * WordPress watch pages carry Facebook/Twitter share widgets whose shared URL repeats the
+     * episode number, which otherwise parsed as an episode of an unrelated domain.
+     */
+    private fun sameSite(candidate: String, base: String): Boolean {
+        val a = UrlUtil.host(candidate) ?: return false
+        val b = UrlUtil.host(base) ?: return false
+        return HostScope.sameSite(a, b)
+    }
 
     private fun slugTokens(url: String): Set<String> =
         Regex("[^a-zA-Z0-9]+").split(url.substringAfter("://").substringAfter('/', ""))
