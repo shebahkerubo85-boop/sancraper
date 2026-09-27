@@ -11,7 +11,10 @@ import kotlin.test.assertTrue
 
 class SiteRegistryTest {
 
-    private val registry: SiteRegistry = SiteRegistry.fromJson(UniversalResolver.bundledRegistryJson())
+    private val registryJson: String =
+        UniversalResolver.bundledRegistryJson() ?: error("bundled site-registry.json is missing from the classpath")
+
+    private val registry: SiteRegistry = SiteRegistry.fromJson(registryJson)
 
     @Test
     fun bundledRegistryLoads() {
