@@ -66,8 +66,10 @@ object MediaValidator {
         }
 
         // Content length is a strong signal when present: stubs and ad bodies are tiny.
+        // It must not be applied to manifests, which are legitimately a few kilobytes.
         val len = probe.contentLength
-        if (len != null && len in 1 until MIN_PLAYABLE_BYTES) return false
+        val isManifest = expected == VideoType.HLS || expected == VideoType.DASH
+        if (!isManifest && len != null && len in 1 until MIN_PLAYABLE_BYTES) return false
 
         // When the URL claims to be a playlist, confirm the body really is one.
         if (expected == VideoType.HLS) {

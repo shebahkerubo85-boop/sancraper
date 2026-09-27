@@ -41,8 +41,9 @@ object HostScope {
         if (labels.size <= 1) return host
         if (labels.size == 2) return host
         val lastTwo = labels.takeLast(2).joinToString(".")
-        // A three-label host whose last two labels form a known multi-part suffix scopes to itself.
-        if (labels.size == 3 && lastTwo in MULTI_PART_SUFFIXES) return host
+        // Multi-part public suffixes must not collapse to the suffix itself: for `a.b.example.co.uk`
+        // the crawl scope is `example.co.uk`, not `co.uk`.
+        if (lastTwo in MULTI_PART_SUFFIXES) return labels.takeLast(3).joinToString(".")
         return lastTwo
     }
 

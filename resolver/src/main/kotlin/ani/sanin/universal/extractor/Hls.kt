@@ -20,8 +20,7 @@ object Hls {
         val key = "$name="
         var i = line.indexOf(key)
         while (i >= 0) {
-            val before = if (i == 0) ' ' else line[i - 1]
-            if (before == ',' || before == ' ') {
+            if (i == 0 || !line[i - 1].isLetterOrDigit() && line[i - 1] != '_') {
                 var j = i + key.length
                 if (j < line.length && line[j] == '"') {
                     val end = line.indexOf('"', j + 1)

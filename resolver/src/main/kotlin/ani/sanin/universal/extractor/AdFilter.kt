@@ -25,7 +25,7 @@ object AdFilter {
         "/adserver", "/adsdk", "/adframe", "/prebid"
     )
 
-    private val QUERY_MARKERS = listOf("&ad=", "?ad=", "&ads=", "?ads=", "&adid=", "&ad_type=", "&adtype=")
+    private val AD_QUERY = Regex("(^|&)(ad|ads|adid|ad_id|adtype|ad_type|adsrc|advert|advertising|adslot)=")
 
     /** True when the URL looks like advertising or tracking rather than content. */
     fun isAd(url: String): Boolean {
@@ -35,7 +35,7 @@ object AdFilter {
         val path = lower.substringBefore('?')
         if (PATH_MARKERS.any { path.contains(it) }) return true
         val query = lower.substringAfter('?', "")
-        if (query.isNotEmpty() && QUERY_MARKERS.any { query.contains(it) }) return true
+        if (query.isNotEmpty() && AD_QUERY.containsMatchIn(query)) return true
         // Tracking redirects carry a destination but no media extension.
         if (query.contains("url=") && ani.sanin.universal.util.UrlUtil.mediaType(lower) == null) return true
         return false
