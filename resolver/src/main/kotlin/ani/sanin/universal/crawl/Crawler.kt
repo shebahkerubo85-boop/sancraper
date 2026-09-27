@@ -101,10 +101,9 @@ class SiteCrawler(
 
     companion object {
         private val MARKERS = listOf(
-            "anime", "watch", "episode", "episodes", "ep-", "ep/", "e/", "search",
-            "show", "series", "season", "title", "play", "stream", "video",
-            "movie", "ova", "ona", "special", "dub", "sub", "list", "detail", "details",
-            "catalog", "sitemap", "/tv", "airing", "schedule", "episode-list", "watchlist"
+            "anime", "watch", "episode", "episodes", "ep-", "ep/", "search",
+            "season", "play", "stream", "detail", "details",
+            "catalog", "sitemap", "episode-list", "watchlist"
         )
     }
 }

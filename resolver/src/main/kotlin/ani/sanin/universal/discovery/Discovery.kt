@@ -91,7 +91,7 @@ object EpisodeDiscovery {
                 if (href.isBlank()) return@forEach
                 val absolute = UrlUtil.resolve(base, href) ?: return@forEach
                 val text = a.text().trim()
-                val hint = EpisodeParser.best(absolute, text.ifBlank { null }) ?: return@forEach
+                val hint = episodeHint(absolute, text) ?: return@forEach
                 found += EpisodeCandidate(hint.number, text.ifBlank { null }, absolute, score(text, absolute, hint))
             }
 
@@ -101,7 +101,7 @@ object EpisodeDiscovery {
                 val absolute = UrlUtil.resolve(base, value) ?: return@forEach
                 if (!absolute.startsWith("http", true)) return@forEach
                 val text = o.text().trim()
-                val hint = EpisodeParser.best(absolute, text.ifBlank { null }) ?: return@forEach
+                val hint = episodeHint(absolute, text) ?: return@forEach
                 found += EpisodeCandidate(hint.number, text.ifBlank { null }, absolute, score(text, absolute, hint))
             }
 
@@ -117,7 +117,37 @@ object EpisodeDiscovery {
             }
         }
         found += fromJsonLd(html, base)
-        return dedupe(found)
+        return scopeToAnime(dedupe(found), base)
+    }
+
+    private val SLUG_STOP = setOf(
+        "anime", "watch", "episode", "episodes", "tv", "the", "and", "for", "with",
+        "season", "part", "dub", "sub", "movie", "ova", "ona", "special", "free", "streaming"
+    )
+
+    private fun slugTokens(url: String): Set<String> =
+        Regex("[^a-zA-Z0-9]+").split(url.substringAfter("://").substringAfter('/', ""))
+            .filter { it.length >= 3 && it.any { c -> c.isLetter() } }
+            .map { it.lowercase() }
+            .filter { it !in SLUG_STOP }
+            .toSet()
+
+    /**
+     * Drops episode links that belong to a different show.
+     *
+     * Anime pages embed "you might also like" carousels whose entries are real watch pages for
+     * unrelated series, so without scoping, episode 1 of the requested title frequently resolves to
+     * a completely different anime. Keeping only links that share a meaningful slug token with the
+     * page removes them.
+     *
+     * The filter fails open: pages whose slug yields fewer than two usable tokens (numeric ids, bare
+     * `/anime/1`) keep the full candidate list rather than losing every episode.
+     */
+    private fun scopeToAnime(all: List<EpisodeCandidate>, base: String): List<EpisodeCandidate> {
+        val anchor = slugTokens(base)
+        if (anchor.size < 2) return all
+        val kept = all.filter { cand -> slugTokens(cand.url).any { it in anchor } }
+        return if (kept.isEmpty()) all else kept
     }
 
     /** `application/ld+json` episode lists, used by WordPress and CMS based anime sites. */
@@ -154,6 +184,23 @@ object EpisodeDiscovery {
             }
             else -> Unit
         }
+    }
+
+    /**
+     * An episode link must be an episode *by URL*: either it carries an episode query parameter or
+     * it sits on an episode-shaped route.
+     *
+     * Link text is deliberately not enough to qualify the URL. Anime sites label the "you might
+     * also like" widgets with episode badges, so a series page such as
+     * `/attack-on-titan-final-season-1372` is advertised as "Episode 1" while pointing at a
+     * different show entirely. Text is only used to refine the number once the URL qualifies.
+     */
+    private fun episodeHint(url: String, text: String): EpisodeParser.EpisodeHint? {
+        EpisodeParser.fromQuery(url)?.let { return EpisodeParser.EpisodeHint(it, "query") }
+        if (!EpisodeParser.isEpisodeRoute(url)) return null
+        EpisodeParser.extract(text)?.let { return EpisodeParser.EpisodeHint(it, "text") }
+        EpisodeParser.extract(url)?.let { return EpisodeParser.EpisodeHint(it, "url") }
+        return null
     }
 
     private fun dedupe(all: List<EpisodeCandidate>): List<EpisodeCandidate> =

@@ -106,6 +106,23 @@ object EpisodeParser {
 
     data class EpisodeHint(val number: Int, val origin: String)
 
+    /**
+     * True when the URL itself denotes an episode rather than a detail/catalogue page.
+     *
+     * A bare trailing number is not enough: anime sites routinely use `/show-slug-1372` for a
+     * *series* page, so accepting the path number alone made the resolver report series pages as
+     * episodes and send the client to the wrong URL.
+     */
+    private val EPISODE_ROUTE = Regex(
+        "(?i)/(?:episode|episodes|watch|play|stream|video|series/[^/]+/episode|ep)/|-/ep\\d|\\?ep=|\\?eps=|\\?episode=|\\?ep_number=|\\?epnum="
+    )
+    private val EPISODE_TEXT = Regex("(?i)\\b(?:episode|episodes|eps|ep\\.?|part)\\s*#?\\d{1,4}\\b")
+
+    fun isEpisodeRoute(url: String) = EPISODE_ROUTE.containsMatchIn(url)
+
+    /** True when the visible link text names an episode explicitly. */
+    fun hasEpisodeText(text: String) = EPISODE_TEXT.containsMatchIn(text)
+
     /** Tokens that carry no identifying information when matching a candidate title. */
     fun isNoiseToken(token: String): Boolean = token.lowercase() in NOISE
 }
